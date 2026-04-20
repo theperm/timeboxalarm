@@ -14,5 +14,5 @@ Windows desktop app to sound alarms at configurable, hour-synchronized intervals
 ## Run
 
 ```bash
-dotnet run --project /home/runner/work/timeboxalarm/timeboxalarm/TimeboxAlarm/TimeboxAlarm.csproj
+dotnet run --project TimeboxAlarm/TimeboxAlarm.csproj
 ```

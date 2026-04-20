@@ -2,9 +2,10 @@ using System.Media;
 
 namespace TimeboxAlarm;
 
-public partial class Form1 : Form
+public partial class MainForm : Form
 {
     private const int AlarmCount = 5;
+    private const int TriggerWindowSeconds = 2;
 
     private readonly List<AlarmRow> _alarms = [];
     private readonly System.Windows.Forms.Timer _timer;
@@ -12,7 +13,7 @@ public partial class Form1 : Form
     private readonly Button _quitButton;
     private bool _isExiting;
 
-    public Form1()
+    public MainForm()
     {
         InitializeComponent();
 
@@ -167,13 +168,8 @@ public partial class Form1 : Form
             }
 
             var interval = (int)alarm.IntervalInput.Value;
-            if (interval <= 0)
-            {
-                alarm.StatusLabel.Text = "Disabled";
-                continue;
-            }
 
-            if (now.Minute % interval == 0 && now.Second < 2)
+            if (now.Minute % interval == 0 && now.Second < TriggerWindowSeconds)
             {
                 var boundary = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
                 if (alarm.LastTriggeredBoundary != boundary)
@@ -192,7 +188,7 @@ public partial class Form1 : Form
 
     private static DateTime GetNextBoundary(DateTime now, int intervalMinutes)
     {
-        if (now.Minute % intervalMinutes == 0 && now.Second < 2)
+        if (now.Minute % intervalMinutes == 0 && now.Second < TriggerWindowSeconds)
         {
             return new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
         }
