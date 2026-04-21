@@ -75,15 +75,26 @@ public partial class MainForm : Form
             Margin = new Padding(8, 11, 4, 8)
         };
 
-        var bottomPanel = new FlowLayoutPanel
+        var soundPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            AutoSize = true
+        };
+        soundPanel.Controls.Add(soundLabel);
+        soundPanel.Controls.Add(_soundSelector);
+
+        var bottomPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Bottom,
-            FlowDirection = FlowDirection.RightToLeft,
-            Height = 48
+            ColumnCount = 2,
+            Height = 48,
+            Padding = new Padding(0, 4, 8, 4)
         };
-        bottomPanel.Controls.Add(_quitButton);
-        bottomPanel.Controls.Add(_soundSelector);
-        bottomPanel.Controls.Add(soundLabel);
+        bottomPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        bottomPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        bottomPanel.Controls.Add(soundPanel, 0, 0);
+        bottomPanel.Controls.Add(_quitButton, 1, 0);
         Controls.Add(bottomPanel);
 
         ApplyTheme(GetPreferredTheme());
@@ -525,15 +536,10 @@ public partial class MainForm : Form
 
     private int GetSoundIndexByName(string soundName)
     {
-        for (var i = 0; i < AvailableSounds.Length; i++)
-        {
-            if (string.Equals(AvailableSounds[i].Name, soundName, StringComparison.OrdinalIgnoreCase))
-            {
-                return i;
-            }
-        }
-
-        return DefaultSoundIndex >= 0 ? DefaultSoundIndex : 0;
+        var index = Array.FindIndex(
+            AvailableSounds,
+            sound => string.Equals(sound.Name, soundName, StringComparison.OrdinalIgnoreCase));
+        return index >= 0 ? index : (DefaultSoundIndex >= 0 ? DefaultSoundIndex : 0);
     }
 
     private string GetSelectedSoundName()
