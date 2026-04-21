@@ -9,12 +9,25 @@ public partial class MainForm : Form
 {
     private const int AlarmCount = 5;
     private const int TriggerWindowSeconds = 2;
+    private const string DefaultSoundName = "Exclamation";
     private static readonly int[] DefaultIntervals = [1, 5, 15, 30, 60];
+    private static readonly SoundOption[] AvailableSounds =
+    [
+        new("Asterisk", SystemSounds.Asterisk),
+        new("Beep", SystemSounds.Beep),
+        new("Exclamation", SystemSounds.Exclamation),
+        new("Hand", SystemSounds.Hand),
+        new("Question", SystemSounds.Question)
+    ];
+    private static readonly int DefaultSoundIndex = Array.FindIndex(
+        AvailableSounds,
+        sound => string.Equals(sound.Name, DefaultSoundName, StringComparison.OrdinalIgnoreCase));
 
     private readonly List<AlarmRow> _alarms = [];
     private readonly System.Windows.Forms.Timer _timer;
     private readonly NotifyIcon _trayIcon;
     private readonly Button _quitButton;
+    private readonly ComboBox _soundSelector;
     private readonly string _settingsPath;
     private bool _isExiting;
     private bool _isLoadingSettings;
@@ -45,6 +58,23 @@ public partial class MainForm : Form
         };
         _quitButton.Click += (_, _) => QuitApplication();
 
+        _soundSelector = new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Width = 160
+        };
+        _soundSelector.Items.AddRange(AvailableSounds.Select(sound => sound.Name).ToArray());
+        _soundSelector.SelectedIndex = GetSoundIndexByName(DefaultSoundName);
+        _soundSelector.SelectedIndexChanged += (_, _) => SaveSettings();
+
+        var soundLabel = new Label
+        {
+            Text = "Alarm sound:",
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(8, 11, 4, 8)
+        };
+
         var bottomPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Bottom,
@@ -52,6 +82,8 @@ public partial class MainForm : Form
             Height = 48
         };
         bottomPanel.Controls.Add(_quitButton);
+        bottomPanel.Controls.Add(_soundSelector);
+        bottomPanel.Controls.Add(soundLabel);
         Controls.Add(bottomPanel);
 
         ApplyTheme(GetPreferredTheme());
@@ -75,6 +107,12 @@ public partial class MainForm : Form
         public required Color Foreground { get; init; }
         public required Color ButtonSurface { get; init; }
         public required Color ButtonForeground { get; init; }
+    }
+
+    private sealed class SoundOption(string name, SystemSound sound)
+    {
+        public string Name { get; } = name;
+        public SystemSound Sound { get; } = sound;
     }
 
     private sealed class AlarmRow
@@ -230,6 +268,10 @@ public partial class MainForm : Form
                     button.ForeColor = palette.ButtonForeground;
                     button.BackColor = palette.ButtonSurface;
                     break;
+                case ComboBox comboBox:
+                    comboBox.ForeColor = palette.Foreground;
+                    comboBox.BackColor = palette.ControlSurface;
+                    break;
                 default:
                     control.ForeColor = palette.Foreground;
                     control.BackColor = palette.Surface;
@@ -268,6 +310,7 @@ public partial class MainForm : Form
 
     private void CheckAlarms(DateTime now)
     {
+        var playedSoundThisTick = false;
         foreach (var alarm in _alarms)
         {
             if (alarm.EnabledCheckBox.Checked)
@@ -280,7 +323,11 @@ public partial class MainForm : Form
                     if (alarm.LastTriggeredBoundary != boundary)
                     {
                         alarm.LastTriggeredBoundary = boundary;
-                        SystemSounds.Exclamation.Play();
+                        if (!playedSoundThisTick)
+                        {
+                            GetSelectedSound().Play();
+                            playedSoundThisTick = true;
+                        }
                         alarm.StatusLabel.Text = $"Triggered at {boundary:HH:mm}";
                     }
                 }
@@ -436,6 +483,11 @@ public partial class MainForm : Form
 
                 row.LastTriggeredBoundary = null;
             }
+
+            if (settings.TryGetValue("sound.selected", out var selectedSoundName))
+            {
+                _soundSelector.SelectedIndex = GetSoundIndexByName(selectedSoundName);
+            }
         }
         finally
         {
@@ -459,6 +511,7 @@ public partial class MainForm : Form
             builder.AppendLine($"alarm{index}.interval={(int)row.IntervalInput.Value}");
             builder.AppendLine($"alarm{index}.enabled={row.EnabledCheckBox.Checked}");
         }
+        builder.AppendLine($"sound.selected={GetSelectedSoundName()}");
 
         try
         {
@@ -468,5 +521,41 @@ public partial class MainForm : Form
         {
             Debug.WriteLine($"Failed to save settings to '{_settingsPath}': {exception}");
         }
+    }
+
+    private int GetSoundIndexByName(string soundName)
+    {
+        for (var i = 0; i < AvailableSounds.Length; i++)
+        {
+            if (string.Equals(AvailableSounds[i].Name, soundName, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return DefaultSoundIndex >= 0 ? DefaultSoundIndex : 0;
+    }
+
+    private string GetSelectedSoundName()
+    {
+        var index = _soundSelector.SelectedIndex;
+        if (index < 0 || index >= AvailableSounds.Length)
+        {
+            return DefaultSoundName;
+        }
+
+        return AvailableSounds[index].Name;
+    }
+
+    private SystemSound GetSelectedSound()
+    {
+        var index = _soundSelector.SelectedIndex;
+        if (index < 0 || index >= AvailableSounds.Length)
+        {
+            var safeDefaultIndex = DefaultSoundIndex >= 0 ? DefaultSoundIndex : 0;
+            return AvailableSounds[safeDefaultIndex].Sound;
+        }
+
+        return AvailableSounds[index].Sound;
     }
 }
