@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using System.Diagnostics;
 using System.Media;
 using System.Text;
 
@@ -162,13 +163,19 @@ public partial class MainForm : Form
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
-            if (key?.GetValue("AppsUseLightTheme") is int appsUseLightThemeValue)
+            if (key is null)
+            {
+                return AppTheme.Light;
+            }
+
+            if (key.GetValue("AppsUseLightTheme") is int appsUseLightThemeValue)
             {
                 return appsUseLightThemeValue == 0 ? AppTheme.Dark : AppTheme.Light;
             }
         }
-        catch
+        catch (Exception)
         {
+            // Fall back to light theme if the Windows theme setting is unavailable.
         }
 
         return AppTheme.Light;
@@ -373,23 +380,37 @@ public partial class MainForm : Form
         }
 
         var settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var line in File.ReadAllLines(_settingsPath))
+        try
         {
-            var trimmed = line.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith(';') || trimmed.StartsWith('#') || trimmed.StartsWith('['))
+            foreach (var line in File.ReadLines(_settingsPath))
             {
-                continue;
-            }
+                var trimmed = line.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
 
-            var separatorIndex = trimmed.IndexOf('=');
-            if (separatorIndex <= 0)
-            {
-                continue;
-            }
+                var firstCharacter = trimmed[0];
+                if (firstCharacter == ';' || firstCharacter == '#' || firstCharacter == '[')
+                {
+                    continue;
+                }
 
-            var key = trimmed[..separatorIndex].Trim();
-            var value = trimmed[(separatorIndex + 1)..].Trim();
-            settings[key] = value;
+                var separatorIndex = trimmed.IndexOf('=');
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                var key = trimmed[..separatorIndex].Trim();
+                var value = trimmed[(separatorIndex + 1)..].Trim();
+                settings[key] = value;
+            }
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"Failed to read settings from '{_settingsPath}': {exception}");
+            return;
         }
 
         _isLoadingSettings = true;
@@ -439,6 +460,13 @@ public partial class MainForm : Form
             builder.AppendLine($"alarm{index}.enabled={row.EnabledCheckBox.Checked}");
         }
 
-        File.WriteAllText(_settingsPath, builder.ToString());
+        try
+        {
+            File.WriteAllText(_settingsPath, builder.ToString());
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"Failed to save settings to '{_settingsPath}': {exception}");
+        }
     }
 }
