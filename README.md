@@ -17,14 +17,8 @@ Windows desktop app to sound alarms at configurable, hour-synchronized intervals
 dotnet run --project TimeboxAlarm/TimeboxAlarm.csproj
 ```
 
-## Dev Container
-
-This repository includes a dev container configuration in `.devcontainer/devcontainer.json`.
-
-Open the repository in VS Code and use **Dev Containers: Reopen in Container** to develop in a consistent .NET SDK environment.
-
-After the container starts, verify the project builds with:
+## Build
 
 ```bash
-dotnet build TimeboxAlarm/TimeboxAlarm.csproj
+dotnet build timeboxalarm.sln
 ```
